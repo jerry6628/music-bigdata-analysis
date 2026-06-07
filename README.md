@@ -1,80 +1,160 @@
 # music-bigdata-analysis
+
 시대별 음악 메타데이터 변화를 분석하기 위한 빅데이터 처리 및 분석 프로젝트
 
-# 1. 문제 정의
+# 분석 개요
 
 이번 프로젝트는 다양한 시대의 노래를 듣다보니 느껴지는 차이점으로부터 발발된 질의로 시대가 지나면서 음악의 특징이 어떻게 달라졌는지 알아보고자 시작하였다. 음악은 단순히 듣기만 하는 콘텐츠가 아니라, 그 시대의 분위기나 동시대 사람들의 취향을 어느 정도 반영한다고 생각한다. 그래서 여러 시대의 음악 데이터를 모아 분석하면 특정 시기에 어떤 장르가 많이 등장했는지, 곡의 길이나 템포 같은 특징이 어떻게 변했는지 확인할 수 있을 것이라고 생각했다.
 
-해당 프로젝트의 분석을 위해서 kaggle에서 제공하는 공개 음악 메타데이터를 수집하여 사용할 계획이다. 데이터에는 곡 제목, 아티스트명, 발매 연도, 장르 등의 정보들이 포함되며 이 데이터들을 HDFS에 저장한 뒤 spark와 pig를 이용하여 시대별 음악 특징을 분석해보고자 한다. 
+이를 위해 kaggle에서 제공하는 spotify 음악 메타데이터를 수집하고, hadoop 기반 환경을 활용하여 시대별 음악 특징의 변화를 분석하고자 하였다. 즉, 이번 프로젝트의 중추는 단순한 데이터 조회가 아닌 1950년대부터 2020년대까지의 음악이 감정적으로, 또는 형식적으로, 그리고 소리가 담아낸 음악의 성질이 어떻게 바뀌었는지를 데이터로 확인하는 것이다.
 
+# 1. 분석 문제 정의
 분석하기 전 효율적인 분석을 위하여 주요 분석 질문들을 만들어 보자면 하기 사항과 같다.
+1. 시대별 음악의 감정은 당시 시대상·대중 분위기와 어떤 관계가 있는가?
+2. 시대별 평균 곡 길이와 템포는 어떻게 변했는가?
+3. 시대별로 어쿠스틱 음악은 줄고 전자음악은 늘었는가?
 
-1. 시대별로 음악 장르의 분포는 어떻게 달라졌는가?
-2. 시대별 평균 곡 길이와 템포는 어떤 변화를 보이는가?
-3. 인기도가 높은 곡들은 어떤 음악적 특징을 가지고 있는가?
+# 2. 사용 데이터
 
-이 프로젝트를 통해 단순히 음악 데이터를 조회하는 것이 아니라, 시대에 따른 음악 트렌드의 변화를 빅데이터 처리 도구를 이용해 분석하는 것을 목표로 한다.
+본 프로젝트에서는 Kaggle에서 제공하는 공개 음악 메타데이터를 사용하였다.
 
-# 2. 사용할 데이터
+- 데이터셋: Spotify 1.2M Songs
+- 출처: [Kaggle](https://www.kaggle.com/datasets/rodolfofigueroa/spotify-12m-songs)
+- 형식: CSV
+- 규모: 330MB, 약 120만 곡
+- 수집 방법: Python 스크립트(download_data.py)를 통해 Kaggle API로 자동 수집
 
-본 프로젝트에서는 공개 음악 메타데이터를 사용할 계획이다.
-
-- 데이터 출처: Kaggle 공개 음악 데이터셋
-- 데이터 형식: CSV
-- 예상 데이터 크기: 누적 100MB 이상
-- 주요 데이터 항목:
-  - 곡 제목
-  - 아티스트명
-  - 발매 연도
-  - 장르
-  - 곡 길이
-  - 템포
-  - 인기도
-  - 기타 음악적 특성
-
-수집한 데이터는 원본 데이터를 보관한 뒤 HDFS에 업로드하여 분석에 사용할 예정이다. 데이터의 크기가 크기 때문에 로컬 환경에서만 처리하지 않고, Hadoop 기반 환경에서 저장하고 처리하는 방식으로 진행할 계획이다.
+수집한 데이터는 HDFS에 업로드하여 분석에 사용하였다. 데이터의 크기가 크기 때문에 로컬 환경에서만 처리하지 않고, Hadoop 기반 환경에서 저장하고 처리하는 방식으로 진행하였다.
 
 # 3. 기술 스택
 
-이번 프로젝트에서 사용할 계획인 기술 스택은 다음과 같다.
+| 단계 | 기술 | 역할 |
+|---|---|---|
+| 데이터 수집 | Python (Kaggle API) | 데이터 자동 다운로드 |
+| 저장 | HDFS | 원본·처리·결과 데이터 저장 |
+| 정제 | Apache Pig | 결측치 제거, 컬럼 선택, decade 컬럼 추가 |
+| 분석 | Apache Spark / Spark SQL | 시대별 집계 및 통계 분석 |
+| 시각화 | Matplotlib | 분석 결과 그래프 생성 |
 
-- Python: 공개 음악 데이터셋 수집 및 간단한 전처리 스크립트 작성
-- HDFS: 수집한 원본 음악 데이터를 저장
-- Pig: HDFS에 저장된 음악 데이터에서 필요한 컬럼 추출, 필터링, 기본 집계 수행
-- Spark / PySpark: 대용량 음악 메타데이터 전처리와 시대별 분석 수행
-- Spark SQL: 시대별, 장르별, 인기도별 분석 쿼리 수행
-- Matplotlib: 분석 결과를 그래프로 시각화
-- GitHub: 프로젝트 코드, README, 실행 방법 및 결과 정리
+# 4. 시스템 아키텍처
+```
+Kaggle 데이터 다운로드 (download_data.py)
+        ↓
+HDFS 적재 (/user/maria_dev/music/raw/)
+        ↓  Pig: clean_music.pig
+HDFS 정제 (/user/maria_dev/music/processed/)
+        ↓  Spark: analyze_music.py
+HDFS 결과 (/user/maria_dev/music/result/)
+        ↓  Matplotlib: visualize.py
+분석 결과 그래프 (music_analysis.png)
+```
 
-본 프로젝트에서는 교수님 자료의 추천 주제 예시에 맞추어 Spark와 Pig를 핵심 기술로 사용할 계획이다. Pig는 원본 데이터의 기본 정제와 간단한 집계 작업에 사용하고, Spark는 시대별 음악 특징 변화와 장르 분포 분석에 사용할 예정이다.
+# 5. 데이터 처리 방법
 
-# 4. 구현 계획
+## 1단계: 데이터 수집
 
-전체적인 구현 과정은 데이터 수집, HDFS 저장, Pig 기반 데이터 정제, Spark 기반 분석, 결과 시각화 순서로 진행할 계획이다. 본 프로젝트에서는 교수님이 제시한 추천 주제를 참고하여 Spark와 Pig를 중심 기술로 사용하고, 시대에 따른 음악 메타데이터의 변화를 분석하고자 한다.
+Kaggle에서 제공하는 Spotify 1.2M Songs 데이터셋을 Python 스크립트(download_data.py)를 통해 자동 수집하였다. 수집된 데이터는 CSV 형식으로 약 120만 곡의 음악 메타데이터를 포함하며, 총 330MB 규모이다. 주요 컬럼은 다음과 같다.
 
-  # 1단계: 데이터 수집
+- `name` : 곡 제목
+- `artists` : 아티스트명
+- `year` : 발매 연도
+- `valence` : 음악 감정 긍정도 (0=우울, 1=행복)
+- `tempo` : 템포 (BPM)
+- `duration_ms` : 곡 길이 (밀리초)
+- `acousticness` : 어쿠스틱 정도 (0~1)
+- `energy` : 에너지 수준 (0~1)
+- `loudness` : 음량 (dB)
+- `danceability` : 댄서빌리티 (0~1)
 
-먼저 Kaggle에서 제공하는 공개 음악 메타데이터를 수집한다. 사용할 데이터에는 곡 제목, 아티스트명, 발매 연도, 장르, 곡 길이, 템포, 인기도 등의 정보가 포함된 것을 선택할 예정이다.
+## 2단계: HDFS 적재
 
-데이터 수집 과정은 Python 또는 Bash 스크립트로 작성하여 같은 과정을 다시 실행할 수 있도록 구성할 계획이다. 또한 프로젝트 조건에 맞게 누적 100MB 이상의 데이터를 확보하는 것을 목표로 한다.
+수집한 CSV 파일을 HDFS의 `/user/maria_dev/music/raw/` 경로에 업로드하였다. 원본 데이터, 정제 데이터, 분석 결과를 각각 `raw/`, `processed/`, `result/` 디렉터리로 분리하여 관리하였다.
 
-  # 2단계: HDFS 저장
+## 3단계: Pig 기반 데이터 정제
 
-수집한 CSV 데이터를 HDFS에 업로드한다. 원본 데이터와 처리 결과 데이터를 구분하여 저장함으로써, 데이터 수집 단계와 분석 단계를 명확하게 나누어 관리할 예정이다.
+HDFS에 저장된 원본 CSV를 Pig로 불러와 다음과 같은 정제 작업을 수행하였다.
 
-  # 3단계: pig 기반 데이터 정제
+- **결측치 제거**: name, artists, year, tempo, duration_ms, acousticness, energy 컬럼에 null 값이 있는 레코드 제거
+- **이상치 필터링**: year가 1900 이하이거나 2024 초과인 레코드, tempo가 0 이하인 레코드 제거
+- **컬럼 선택**: 분석에 필요한 11개 컬럼만 추출
+- **decade 컬럼 추가**: year를 10으로 나누어 시대 구간 컬럼 생성 (예: 1995 → 1990)
+- **단위 변환**: duration_ms를 1000으로 나누어 초(sec) 단위로 변환
 
-HDFS에 저장된 데이터들을 pig로 불러온 뒤, 분석에 필요한 칼럼을 선택하고 기본적인 정제 작업을 수행한다. 예를 들어 곡 제목, 아티스트명, 발매 연도, 장르, 곡 길이, 템포, 인기도와 같은 컬럼을 중심으로 데이터를 정리할 계획이다. pig를 사용하여 결측치가 있는 데이터를 필터링하거나, 분석에 필요하지 않은 컬럼을 제하고, spark에서 분석하기 좋은 형태의 중간 데이터를 생성한다. 이렇게 정제된 데이터는 HDFS의 processed 디렉터리에 저장할 것이다.
+정제된 데이터는 HDFS의 `/user/maria_dev/music/processed/cleaned/` 경로에 저장하였다.
 
-  # 4단계: Spark 기반 전처리 및 분석
+## 4단계: Spark 기반 분석
 
-Pig를 통해 기본적으로 정제된 데이터를 Spark로 불러와 본격적인 분석을 수행한다. Spark DataFrame을 이용하여 데이터 타입을 변환하고, 발매 연도를 기준으로 1980년대, 1990년대, 2000년대, 2010년대와 같은 시대 구간 컬럼을 생성할 예정이다.
+Pig로 정제된 데이터를 PySpark로 불러와 Spark SQL을 활용하여 3가지 분석 질문에 답하였다.
 
-이후 Spark SQL을 활용하여 시대별 음악 특징을 분석한다.
+- **Q1 분석**: decade 기준으로 GROUP BY 후 valence, energy의 평균값 집계
+- **Q2 분석**: decade 기준으로 GROUP BY 후 tempo, duration_sec의 평균값 및 표준편차 집계
+- **Q3 분석**: decade 기준으로 GROUP BY 후 acousticness, energy의 평균값 집계 및 두 지표 간 변화 추이 비교
 
-주로 시대별로 장르가 어떻게 분포 되어 있는지, 평균적으로 곡 길이는 어느 정도로 변화했는지, 템포와 인기도가 높은 음악들의 특징들은 어떻게 변화해왔는지 같은 정보들을 분석할 것이며 분석 과정에서는 단순히 데이터를 출력하는 것이 아니라, GROUP BY, 집계 함수, 정렬 등을 활용하여 시대별 차이가 드러나도록 결과를 정리할 예정이다.
+분석 결과는 HDFS의 `/user/maria_dev/music/result/` 경로에 CSV 형식으로 저장하였다.
 
-  # 5단계: 결과 저장 및 시각화
-Spark 분석 결과는 CSV 파일 형태로 HDFS의 result 디렉터리에 저장한다. 이후 필요한 결과를 로컬 환경으로 가져와 Matplotlib을 이용해 그래프로 시각화할 계획이다.
+## 5단계: 시각화
 
-Spark 분석 결과는 CSV 파일 형태로 HDFS의 result 디렉터리에 저장한다. 이후 필요한 결과를 로컬 환경으로 가져와 Matplotlib을 이용해 그래프로 시각화할 계획이다.
+분석 결과 CSV를 로컬 환경으로 가져와 Matplotlib을 활용하여 시각화하였다.
+
+- **Q1**: 시대별 valence 평균값 꺾은선 그래프
+- **Q2**: 시대별 곡 길이(막대 그래프)와 템포(꺾은선 그래프)를 이중 축으로 표현
+- **Q3**: 시대별 acousticness와 energy를 하나의 그래프에 겹쳐 두 지표의 교차 시점을 시각적으로 표현
+
+# 6. 실행 방법
+
+### 사전 준비
+```bash
+# Kaggle API 키 설정
+mkdir -p ~/.kaggle
+echo '{"username":"kaggle아이디","key":"kaggle키"}' > ~/.kaggle/kaggle.json
+chmod 600 ~/.kaggle/kaggle.json
+
+pip3 install kaggle --user
+export PATH=$PATH:~/.local/bin
+```
+
+### 단계별 실행
+```bash
+# 1. 데이터 수집
+python src/ingest/download_data.py
+
+# 2. HDFS 업로드
+hdfs dfs -mkdir -p /user/maria_dev/music/raw
+hdfs dfs -put data/raw/tracks_features.csv /user/maria_dev/music/raw/
+
+# 3. Pig 정제
+pig -x mapreduce src/pipeline/clean_music.pig
+
+# 4. Spark 분석
+spark-submit src/pipeline/analyze_music.py
+
+# 5. 결과 내보내기
+hdfs dfs -getmerge /user/maria_dev/music/result/q1_valence result/q1_valence.csv
+hdfs dfs -getmerge /user/maria_dev/music/result/q2_tempo_duration result/q2_tempo_duration.csv
+hdfs dfs -getmerge /user/maria_dev/music/result/q3_acousticness result/q3_acousticness.csv
+
+# 6. 시각화
+python src/analyze/visualize.py
+```
+
+# 7. 분석 결과
+
+![분석 결과 그래프](music_analysis.png)
+
+### Q1. 시대별 음악 감정(valence) 변화
+1950년대부터 1970년대까지는 valence가 0.55~0.56으로 비교적 높게 유지되었으나, 이후 지속적으로 하락하여 2020년대에는 0.406까지 떨어졌다. 1980년대에는 펑크·헤비메탈 등 사회적 저항 음악이 등장하며 감소세가 시작되었고, 1990년대에는 그런지·얼터너티브 록의 전성기를 맞아 우울하고 어두운 감성의 음악이 주류를 이루었다. 2010년대 이후에는 SNS의 확산과 함께 감성적이고 내면적인 음악 트렌드가 반영된 것으로 보인다.
+
+### Q2. 시대별 곡 길이·템포 변화
+곡 길이는 1960년대 199초로 가장 짧았다가 1970년대에 248초로 늘어난 뒤, 2020년대에는 다시 219초로 감소하는 추세를 보였다. 스트리밍 서비스가 보편화된 2010년대 이후 짧은 곡에 대한 선호가 반영된 것으로 해석된다. 템포는 114~121 BPM 범위에서 시대 전반에 걸쳐 큰 변화 없이 안정적으로 유지되었다.
+
+### Q3. acousticness와 energy의 상관관계
+acousticness는 1950년대 0.762에서 2020년대 0.282로 급감한 반면, energy는 같은 기간 0.372에서 0.609로 꾸준히 상승하였다. 두 지표는 1970년대에 교차점을 형성하며 이 시기를 기점으로 전자음악이 주류로 전환되었음을 보여준다. 즉 acousticness와 energy는 시대에 따라 뚜렷한 음의 상관관계를 나타낸다.
+
+# 8. 참고 자료
+- 데이터: [Spotify 1.2M Songs](https://www.kaggle.com/datasets/rodolfofigueroa/spotify-12m-songs)
+- Apache Pig: https://pig.apache.org/
+- Apache Spark: https://spark.apache.org/
+
+## AI Tool Usage
+- Claude: 파이프라인 코드 구조 설계 보조, Pig/Spark 스크립트 디버깅, README 작성 보조
+
